@@ -1,0 +1,664 @@
+<?xml version="1.0" ?>
+<!--
+  Warehouse world + Clearpath Dingo-D (dd100) with a 2D lidar.
+  Target: Gazebo Harmonic (gz-sim 8.x)
+
+  Meshes come from models/dd100/ via model:// URIs, so GZ_SIM_RESOURCE_PATH
+  must include this repo's models/ directory (start.sh does this).
+
+  Layout (metres, world frame):
+    Building interior  : 24 x 16  (x: -12..12, y: -8..8), walls 3 m tall
+    Rack rows          : y = -5, -2, 1, 4   (each 0.9 m deep, 2.5 m tall)
+    Rack blocks        : x = -6 and x = +6  (each 8 m long)
+    Aisles             : 2.1 m between rows, 4 m cross-aisle at x = 0
+    Robot spawn        : (-8, 6.5) facing +x
+    Lidar scan plane   : 0.411 m above the floor (0.0145 base_link + 0.3963)
+-->
+<sdf version="1.10">
+  <world name="warehouse">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin filename="gz-sim-imu-system"
+            name="gz::sim::systems::Imu"/>
+
+    <scene>
+      <ambient>0.6 0.6 0.6 1</ambient>
+      <background>0.75 0.8 0.85 1</background>
+      <grid>false</grid>
+    </scene>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 12 0 0 0</pose>
+      <diffuse>0.9 0.9 0.9 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>60</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.4 0.3 -0.9</direction>
+    </light>
+
+    <!-- ================================================================= -->
+    <!-- Static warehouse structure                                        -->
+    <!-- ================================================================= -->
+    <model name="warehouse_building">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+
+      <!-- Floor -->
+      <link name="floor">
+        <pose>0 0 -0.05 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>24 16 0.1</size></box></geometry>
+          <surface>
+            <friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>24 16 0.1</size></box></geometry>
+          <material>
+            <ambient>0.45 0.45 0.47 1</ambient>
+            <diffuse>0.55 0.55 0.57 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Perimeter walls: 0.2 m thick, 3 m tall -->
+      <link name="wall_north">
+        <pose>0 8 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>24.2 0.2 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>24.2 0.2 3</size></box></geometry>
+          <material>
+            <ambient>0.7 0.7 0.68 1</ambient>
+            <diffuse>0.85 0.85 0.82 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="wall_south">
+        <pose>0 -8 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>24.2 0.2 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>24.2 0.2 3</size></box></geometry>
+          <material>
+            <ambient>0.7 0.7 0.68 1</ambient>
+            <diffuse>0.85 0.85 0.82 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="wall_east">
+        <pose>12 0 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>0.2 16.2 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.2 16.2 3</size></box></geometry>
+          <material>
+            <ambient>0.7 0.7 0.68 1</ambient>
+            <diffuse>0.85 0.85 0.82 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="wall_west">
+        <pose>-12 0 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>0.2 16.2 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.2 16.2 3</size></box></geometry>
+          <material>
+            <ambient>0.7 0.7 0.68 1</ambient>
+            <diffuse>0.85 0.85 0.82 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- ---------------- Storage racks: 4 rows x 2 blocks ------------- -->
+      <!-- Row y = -5 -->
+      <link name="rack_r0_b0">
+        <pose>-6 -5 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="rack_r0_b1">
+        <pose>6 -5 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Row y = -2 -->
+      <link name="rack_r1_b0">
+        <pose>-6 -2 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="rack_r1_b1">
+        <pose>6 -2 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Row y = 1 -->
+      <link name="rack_r2_b0">
+        <pose>-6 1 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="rack_r2_b1">
+        <pose>6 1 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Row y = 4 -->
+      <link name="rack_r3_b0">
+        <pose>-6 4 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="rack_r3_b1">
+        <pose>6 4 1.25 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+          <material>
+            <ambient>0.25 0.32 0.45 1</ambient>
+            <diffuse>0.35 0.45 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- ---------------- Support pillars (loop-closure landmarks) ----- -->
+      <link name="pillar_0">
+        <pose>0 -6.5 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+          <material>
+            <ambient>0.5 0.42 0.2 1</ambient>
+            <diffuse>0.75 0.62 0.28 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="pillar_1">
+        <pose>0 6.2 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+          <material>
+            <ambient>0.5 0.42 0.2 1</ambient>
+            <diffuse>0.75 0.62 0.28 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="pillar_2">
+        <pose>-11 0 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+          <material>
+            <ambient>0.5 0.42 0.2 1</ambient>
+            <diffuse>0.75 0.62 0.28 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="pillar_3">
+        <pose>11 0 1.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.35 0.35 3</size></box></geometry>
+          <material>
+            <ambient>0.5 0.42 0.2 1</ambient>
+            <diffuse>0.75 0.62 0.28 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- ---------------- Clutter: pallet stacks ---------------------- -->
+      <link name="crate_0">
+        <pose>-10.8 6.0 0.5 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>1.2 1.0 1.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.2 1.0 1.0</size></box></geometry>
+          <material>
+            <ambient>0.45 0.30 0.16 1</ambient>
+            <diffuse>0.65 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="crate_1">
+        <pose>-10.8 4.5 0.35 0 0 0</pose>
+        <collision name="collision">
+          <geometry><box><size>1.2 1.0 0.7</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.2 1.0 0.7</size></box></geometry>
+          <material>
+            <ambient>0.45 0.30 0.16 1</ambient>
+            <diffuse>0.65 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="crate_2">
+        <pose>10.6 -6.4 0.6 0 0 0.35</pose>
+        <collision name="collision">
+          <geometry><box><size>1.4 1.1 1.2</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.4 1.1 1.2</size></box></geometry>
+          <material>
+            <ambient>0.45 0.30 0.16 1</ambient>
+            <diffuse>0.65 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="crate_3">
+        <pose>3.2 6.9 0.45 0 0 -0.2</pose>
+        <collision name="collision">
+          <geometry><box><size>1.6 1.2 0.9</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.6 1.2 0.9</size></box></geometry>
+          <material>
+            <ambient>0.45 0.30 0.16 1</ambient>
+            <diffuse>0.65 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+      </link>
+      <link name="crate_4">
+        <pose>-3.5 -6.9 0.4 0 0 0.1</pose>
+        <collision name="collision">
+          <geometry><box><size>1.3 1.0 0.8</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>1.3 1.0 0.8</size></box></geometry>
+          <material>
+            <ambient>0.45 0.30 0.16 1</ambient>
+            <diffuse>0.65 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================================================================= -->
+    <!-- Mobile robot: Clearpath Dingo-D (dd100) + 2D lidar on a mast       -->
+    <!--                                                                    -->
+    <!-- Geometry/inertia taken from clearpath_platform_description         -->
+    <!-- (urdf/dd100/dd100.urdf.xacro).  base_link sits 0.0145 m above the  -->
+    <!-- ground when the wheels are in contact; the chassis top is at       -->
+    <!-- z = 0.0963 m.  The lidar mast adds 0.30 m on top of that.          -->
+    <!-- ================================================================= -->
+    <model name="dingo">
+      <pose>-8 6.5 0.03 0 0 0</pose>
+      <self_collide>false</self_collide>
+
+      <!-- Chassis -->
+      <link name="base_link">
+        <pose>0 0 0 0 0 0</pose>
+        <inertial>
+          <mass>10.0</mass>
+          <inertia>
+            <ixx>0.2216</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.2458</iyy><iyz>0</iyz>
+            <izz>0.4474</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <mesh><uri>model://dd100/meshes/chassis_collision.stl</uri></mesh>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>model://dd100/meshes/chassis.dae</uri></mesh>
+          </geometry>
+        </visual>
+
+        <!-- Lidar mast: 0.30 m post rising from the chassis top (z=0.0963) -->
+        <visual name="lidar_mast">
+          <pose>0 0 0.2463 0 0 0</pose>
+          <geometry><cylinder><radius>0.02</radius><length>0.30</length></cylinder></geometry>
+          <material>
+            <ambient>0.15 0.15 0.15 1</ambient>
+            <diffuse>0.25 0.25 0.25 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Drive wheels: radius 0.049, separation 0.4523 (front axle) -->
+      <link name="front_left_wheel_link">
+        <pose>0.0989838 0.2261616 0.0345 0 0 0</pose>
+        <inertial>
+          <mass>0.111</mass>
+          <inertia>
+            <ixx>0.0003234</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.0003234</iyy><iyz>0</iyz>
+            <izz>0.00049015</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <pose>0 0 0 1.5707963 0 0</pose>
+          <geometry><cylinder><radius>0.049</radius><length>0.02032</length></cylinder></geometry>
+          <surface>
+            <friction><ode><mu>0.5</mu><mu2>0.5</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>model://dd100/meshes/wheel.stl</uri></mesh>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.1 0.1 0.1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <link name="front_right_wheel_link">
+        <pose>0.0989838 -0.2261616 0.0345 0 0 0</pose>
+        <inertial>
+          <mass>0.111</mass>
+          <inertia>
+            <ixx>0.0003234</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.0003234</iyy><iyz>0</iyz>
+            <izz>0.00049015</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <pose>0 0 0 1.5707963 0 0</pose>
+          <geometry><cylinder><radius>0.049</radius><length>0.02032</length></cylinder></geometry>
+          <surface>
+            <friction><ode><mu>0.5</mu><mu2>0.5</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <mesh><uri>model://dd100/meshes/wheel.stl</uri></mesh>
+          </geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.1 0.1 0.1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- Rear caster: frictionless sphere, rigidly attached (as in the URDF).
+           The URDF puts the caster bottom 2.2 mm below the wheel bottom, so the
+           robot rests pitched ~0.37 deg nose-down.  Kept as-is for fidelity. -->
+      <link name="rear_caster">
+        <pose>-0.244 0 -0.00674 0 0 0</pose>
+        <inertial>
+          <mass>0.1</mass>
+          <inertia>
+            <ixx>0.001</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.001</iyy><iyz>0</iyz>
+            <izz>0.001</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry><sphere><radius>0.01</radius></sphere></geometry>
+          <surface>
+            <friction><ode><mu>0.0</mu><mu2>0.0</mu2></ode></friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry><sphere><radius>0.01</radius></sphere></geometry>
+          <material>
+            <ambient>0.05 0.05 0.05 1</ambient>
+            <diffuse>0.1 0.1 0.1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+
+      <!-- 2D lidar: centred on the robot, 0.30 m above the chassis top -->
+      <link name="lidar_link">
+        <pose>0 0 0.3963 0 0 0</pose>
+        <inertial>
+          <mass>0.15</mass>
+          <inertia>
+            <ixx>0.00014</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.00014</iyy><iyz>0</iyz>
+            <izz>0.00012</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry><cylinder><radius>0.04</radius><length>0.08</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.04</radius><length>0.08</length></cylinder></geometry>
+          <material>
+            <ambient>0.15 0.15 0.18 1</ambient>
+            <diffuse>0.25 0.25 0.30 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+          </material>
+        </visual>
+
+        <sensor name="lidar" type="gpu_lidar">
+          <pose>0 0 0 0 0 0</pose>
+          <topic>scan</topic>
+          <gz_frame_id>lidar_link</gz_frame_id>
+          <update_rate>10</update_rate>
+          <always_on>true</always_on>
+          <visualize>true</visualize>
+          <lidar>
+            <scan>
+              <horizontal>
+                <samples>720</samples>
+                <resolution>1</resolution>
+                <min_angle>-3.14159265</min_angle>
+                <max_angle>3.14159265</max_angle>
+              </horizontal>
+              <vertical>
+                <samples>1</samples>
+                <resolution>1</resolution>
+                <min_angle>0</min_angle>
+                <max_angle>0</max_angle>
+              </vertical>
+            </scan>
+            <range>
+              <min>0.12</min>
+              <max>12.0</max>
+              <resolution>0.01</resolution>
+            </range>
+            <noise>
+              <type>gaussian</type>
+              <mean>0.0</mean>
+              <stddev>0.01</stddev>
+            </noise>
+          </lidar>
+        </sensor>
+      </link>
+
+      <!-- IMU: at the chassis origin, matching the real dd100 imu_0_link -->
+      <link name="imu_link">
+        <pose>0 0 0 0 0 0</pose>
+        <inertial>
+          <mass>0.001</mass>
+          <inertia>
+            <ixx>1e-9</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>1e-9</iyy><iyz>0</iyz>
+            <izz>1e-9</izz>
+          </inertia>
+        </inertial>
+        <sensor name="imu" type="imu">
+          <topic>imu</topic>
+          <gz_frame_id>imu_link</gz_frame_id>
+          <update_rate>100</update_rate>
+          <always_on>true</always_on>
+        </sensor>
+      </link>
+
+      <!-- Joints -->
+      <joint name="front_left_wheel_joint" type="revolute">
+        <parent>base_link</parent>
+        <child>front_left_wheel_link</child>
+        <axis>
+          <xyz expressed_in="__model__">0 1 0</xyz>
+          <limit>
+            <lower>-1e16</lower>
+            <upper>1e16</upper>
+          </limit>
+          <dynamics><damping>0.01</damping></dynamics>
+        </axis>
+      </joint>
+
+      <joint name="front_right_wheel_joint" type="revolute">
+        <parent>base_link</parent>
+        <child>front_right_wheel_link</child>
+        <axis>
+          <xyz expressed_in="__model__">0 1 0</xyz>
+          <limit>
+            <lower>-1e16</lower>
+            <upper>1e16</upper>
+          </limit>
+          <dynamics><damping>0.01</damping></dynamics>
+        </axis>
+      </joint>
+
+      <joint name="rear_caster_joint" type="fixed">
+        <parent>base_link</parent>
+        <child>rear_caster</child>
+      </joint>
+
+      <joint name="lidar_joint" type="fixed">
+        <parent>base_link</parent>
+        <child>lidar_link</child>
+      </joint>
+
+      <joint name="imu_joint" type="fixed">
+        <parent>base_link</parent>
+        <child>imu_link</child>
+      </joint>
+
+      <!-- Differential drive: subscribes /cmd_vel, publishes /odom and /tf
+
+           Measured against ground truth (straight 6 m run, 0.5 m/s):
+           /odom over-reports distance travelled by ~8-11%.  Raising the wheel
+           friction from 0.5 to 1.5 barely moved ground-truth distance
+           (6.170 -> 6.184 m), so this is not traction-limited; the dominant
+           cause is the effective rolling radius being slightly below the
+           nominal 0.049 m (contact penetration on a small wheel).
+           If you want odometry closer to truth, calibrate <wheel_radius>
+           down (~0.045) rather than chasing friction.  Left uncalibrated on
+           purpose: this drift is exactly what the SLAM front-end must correct. -->
+      <plugin filename="gz-sim-diff-drive-system"
+              name="gz::sim::systems::DiffDrive">
+        <left_joint>front_left_wheel_joint</left_joint>
+        <right_joint>front_right_wheel_joint</right_joint>
+        <wheel_separation>0.4523232</wheel_separation>
+        <wheel_radius>0.049</wheel_radius>
+        <odom_publish_frequency>50</odom_publish_frequency>
+        <topic>cmd_vel</topic>
+        <odom_topic>odom</odom_topic>
+        <tf_topic>tf</tf_topic>
+        <frame_id>odom</frame_id>
+        <child_frame_id>base_link</child_frame_id>
+        <max_linear_acceleration>1.5</max_linear_acceleration>
+        <min_linear_acceleration>-1.5</min_linear_acceleration>
+        <max_angular_acceleration>3.0</max_angular_acceleration>
+        <min_angular_acceleration>-3.0</min_angular_acceleration>
+      </plugin>
+
+      <plugin filename="gz-sim-joint-state-publisher-system"
+              name="gz::sim::systems::JointStatePublisher">
+        <topic>joint_states</topic>
+        <joint_name>front_left_wheel_joint</joint_name>
+        <joint_name>front_right_wheel_joint</joint_name>
+      </plugin>
+    </model>
+
+  </world>
+</sdf>
