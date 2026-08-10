@@ -11,8 +11,43 @@
     Rack rows          : y = -5, -2, 1, 4   (each 0.9 m deep, 2.5 m tall)
     Rack blocks        : x = -6 and x = +6  (each 8 m long)
     Aisles             : 2.1 m between rows, 4 m cross-aisle at x = 0
+    Rack uprights      : 0.09 m square, 1.8 m tall, 2.796 m pitch, 3 per rack
+                         face, protruding 0.09 m into the aisle.  Dimensions
+                         follow the reference warehouse (see below).
+                         Clear aisle width at an upright: 2.1 - 0.18 = 1.92 m
+
+    Racks are OPEN structures - uprights + beams only, no solid back.  A rack
+    is double-sided: each 0.9 m depth is two 0.45 m lanes, one served from
+    each aisle, stocked independently.
+
+    Beam levels        : world z = 0.35, 0.90, 1.45 (reference), 0.06 x 0.05,
+                         one clear span per bay (2.706 m) per level per side.
+                         Beam height is ours to pick (the reference gives only
+                         centrelines); 0.06 keeps the level-0 beam top at 0.38,
+                         3.1 cm clear of the scan plane, so robot pitch does not
+                         drag beams into the scan.
+    Bays               : 2 per rack face (between the 3 uprights), 2.796 m wide
+    Items              : 0.80 x 0.38 x 0.30, resting on the beam.  ONLY LEVEL 0
+                         is stocked - it spans z 0.38..0.68, which the 0.411 m
+                         scan plane cuts.  Levels 1 and 2 would sit at z 0.93
+                         and 1.48, far above the laser, so stocking them adds
+                         geometry the scan can never see.  Beams are still built
+                         at all three levels: they are structure, not stock.
+                         3 slot positions per bay, at most 3 items per bay, so
+                         a bay is anywhere from empty to fully stocked.
+                         Placement is random with a FIXED seed (20260810) so the
+                         map is identical on every run.  47 items placed of a 96
+                         (32 bays x 3) capacity.
+    At the scan plane a rack face therefore reads as: uprights (nearest),
+    item fronts 0.10 m behind them, and see-through gaps at empty slots.
+
     Robot spawn        : (-8, 6.5) facing +x
     Lidar scan plane   : 0.411 m above the floor (0.0145 base_link + 0.3963)
+
+    Rack internals (uprights, beams, items) are GENERATED - edit
+    tools/gen_racks.py and re-run it rather than hand-editing them here:
+        python3 tools/gen_racks.py [--seed N]
+    It is idempotent; re-running never double-applies.
 -->
 <sdf version="1.10">
   <world name="warehouse">
@@ -138,31 +173,572 @@
         </visual>
       </link>
 
-      <!-- ---------------- Storage racks: 4 rows x 2 blocks ------------- -->
+      <!-- ---------------- Storage racks: 4 rows x 2 blocks -------------
+           Each rack face carries vertical uprights so a 2D scan sees discrete
+           features instead of one flat wall.  Their dimensions come from the
+           reference warehouse used by warehouse_stock_count:
+
+             mission_files/mission_file_sim_warehouse_v4.json
+               rack_structure_map.vertical_uprights
+                 -> x = 2.045, 4.841, 7.637, ... => 2.796 m pitch
+                 -> z = 0.0 .. 1.8 m
+             .../warehouse_pose_corrector_laser_based/config/
+             laser_heading_estimation_params.yaml
+               pillar_extraction.min_length/max_length = 0.06/0.16
+                 -> brackets the VISIBLE chord of a 0.09 m nominal upright
+               wall_protrusion.min/max = 0.05/0.35
+                 -> aisle-ward protrusion; ours is 0.09 m (flush outside the face)
+
+           NOT carried over: the reference's 3.2 m aisle and 1.4 m rack
+           thickness imply a 4.6 m row pitch, which does not fit this 16 m
+           building at 4 rows.  Row spacing is unchanged at 3 m.
+           ---------------------------------------------------------------- -->
       <!-- Row y = -5 -->
       <link name="rack_r0_b0">
         <pose>-6 -5 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s0_collision">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s0_visual">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.38 0.26 0.13 1</ambient>
+            <diffuse>0.62 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s1_collision">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s1_visual">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s0_collision">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s0_visual">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.38 0.26 0.13 1</ambient>
+            <diffuse>0.62 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s2_collision">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s2_visual">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s1_collision">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s1_visual">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
           </material>
         </visual>
       </link>
       <link name="rack_r0_b1">
         <pose>6 -5 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s2_collision">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s2_visual">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s1_collision">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s1_visual">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s0_collision">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s0_visual">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s1_collision">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s1_visual">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
           </material>
         </visual>
       </link>
@@ -170,27 +746,573 @@
       <!-- Row y = -2 -->
       <link name="rack_r1_b0">
         <pose>-6 -2 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s1_collision">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s1_visual">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s1_collision">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s1_visual">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.38 0.26 0.13 1</ambient>
+            <diffuse>0.62 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s2_collision">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s2_visual">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s1_l0_s2_collision">
+          <pose>2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s1_l0_s2_visual">
+          <pose>2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
           </material>
         </visual>
       </link>
       <link name="rack_r1_b1">
         <pose>6 -2 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s0_collision">
+          <pose>0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s0_visual">
+          <pose>0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.38 0.26 0.13 1</ambient>
+            <diffuse>0.62 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s2_collision">
+          <pose>2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s2_visual">
+          <pose>2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s1_collision">
+          <pose>1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s1_visual">
+          <pose>1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s2_collision">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s2_visual">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.38 0.26 0.13 1</ambient>
+            <diffuse>0.62 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s0_collision">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s0_visual">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s1_collision">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s1_visual">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s1_l0_s1_collision">
+          <pose>1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s1_l0_s1_visual">
+          <pose>1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
           </material>
         </visual>
       </link>
@@ -198,27 +1320,573 @@
       <!-- Row y = 1 -->
       <link name="rack_r2_b0">
         <pose>-6 1 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s0_collision">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s0_visual">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s2_collision">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s2_visual">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s1_collision">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s1_visual">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s0_collision">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s0_visual">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.34 0.30 0.10 1</ambient>
+            <diffuse>0.68 0.60 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s1_l0_s0_collision">
+          <pose>0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s1_l0_s0_visual">
+          <pose>0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
           </material>
         </visual>
       </link>
       <link name="rack_r2_b1">
         <pose>6 1 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s2_collision">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s2_visual">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s1_collision">
+          <pose>1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s1_visual">
+          <pose>1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s2_collision">
+          <pose>2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s2_visual">
+          <pose>2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s0_collision">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s0_visual">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s1_l0_s1_collision">
+          <pose>1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s1_l0_s1_visual">
+          <pose>1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s1_l0_s0_collision">
+          <pose>0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s1_l0_s0_visual">
+          <pose>0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
           </material>
         </visual>
       </link>
@@ -226,27 +1894,633 @@
       <!-- Row y = 4 -->
       <link name="rack_r3_b0">
         <pose>-6 4 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s1_collision">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s1_visual">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s2_collision">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s2_visual">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s0_collision">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s0_visual">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s0_collision">
+          <pose>0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s0_visual">
+          <pose>0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s0_collision">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s0_visual">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s1_collision">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s1_visual">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s2_collision">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s2_visual">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s1_l0_s0_collision">
+          <pose>0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s1_l0_s0_visual">
+          <pose>0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.12 0.12 1</ambient>
+            <diffuse>0.60 0.24 0.20 1</diffuse>
           </material>
         </visual>
       </link>
       <link name="rack_r3_b1">
         <pose>6 4 1.25 0 0 0</pose>
-        <collision name="collision">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+
+        <collision name="upright_n0_collision">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
         </collision>
-        <visual name="visual">
-          <geometry><box><size>8 0.9 2.5</size></box></geometry>
+        <visual name="upright_n0_visual">
+          <pose>-2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
           <material>
-            <ambient>0.25 0.32 0.45 1</ambient>
-            <diffuse>0.35 0.45 0.62 1</diffuse>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n1_collision">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n1_visual">
+          <pose>0 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_n2_collision">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_n2_visual">
+          <pose>2.796 0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l0_collision">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l0_visual">
+          <pose>-1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l1_collision">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l1_visual">
+          <pose>-1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n0_l2_collision">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n0_l2_visual">
+          <pose>-1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l0_collision">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l0_visual">
+          <pose>1.398 0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l1_collision">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l1_visual">
+          <pose>1.398 0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_n1_l2_collision">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_n1_l2_visual">
+          <pose>1.398 0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s1_collision">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s1_visual">
+          <pose>-1.398 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s0_collision">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s0_visual">
+          <pose>-2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n0_l0_s2_collision">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n0_l0_s2_visual">
+          <pose>-0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.30 0.30 0.32 1</ambient>
+            <diffuse>0.52 0.52 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s0_collision">
+          <pose>0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s0_visual">
+          <pose>0.466 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.34 0.30 0.10 1</ambient>
+            <diffuse>0.68 0.60 0.20 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_n1_l0_s2_collision">
+          <pose>2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_n1_l0_s2_visual">
+          <pose>2.33 0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.38 0.26 0.13 1</ambient>
+            <diffuse>0.62 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s0_collision">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s0_visual">
+          <pose>-2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s1_collision">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s1_visual">
+          <pose>0 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="upright_s2_collision">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+        </collision>
+        <visual name="upright_s2_visual">
+          <pose>2.796 -0.495 -0.350 0 0 0</pose>
+          <geometry><box><size>0.09 0.09 1.8</size></box></geometry>
+          <material>
+            <ambient>0.55 0.25 0.05 1</ambient>
+            <diffuse>0.90 0.42 0.08 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l0_collision">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l0_visual">
+          <pose>-1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l1_collision">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l1_visual">
+          <pose>-1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s0_l2_collision">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s0_l2_visual">
+          <pose>-1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l0_collision">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l0_visual">
+          <pose>1.398 -0.475 -0.900 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l1_collision">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l1_visual">
+          <pose>1.398 -0.475 -0.350 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="beam_s1_l2_collision">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+        </collision>
+        <visual name="beam_s1_l2_visual">
+          <pose>1.398 -0.475 0.200 0 0 0</pose>
+          <geometry><box><size>2.706 0.05 0.06</size></box></geometry>
+          <material>
+            <ambient>0.15 0.18 0.30 1</ambient>
+            <diffuse>0.25 0.32 0.55 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s0_collision">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s0_visual">
+          <pose>-2.33 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.38 0.26 0.13 1</ambient>
+            <diffuse>0.62 0.44 0.24 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s2_collision">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s2_visual">
+          <pose>-0.466 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
+          </material>
+        </visual>
+        <collision name="item_s0_l0_s1_collision">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+        </collision>
+        <visual name="item_s0_l0_s1_visual">
+          <pose>-1.398 -0.250 -0.720 0 0 0</pose>
+          <geometry><box><size>0.8 0.38 0.3</size></box></geometry>
+          <material>
+            <ambient>0.14 0.28 0.20 1</ambient>
+            <diffuse>0.26 0.52 0.36 1</diffuse>
           </material>
         </visual>
       </link>
